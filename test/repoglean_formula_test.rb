@@ -63,6 +63,8 @@ class RepoGleanFormulaTest < Minitest::Test
     refute_includes rendered, 'depends_on "git"'
     assert_includes rendered, "strategy :github_latest"
     assert_includes rendered, 'assert_equal "repoglean #{version}\\n"'
+    assert_includes rendered, 'bin.install "repoglean"'
+    refute_includes rendered, 'bin.install "repoglean-#{rid}/repoglean"'
     assert_operator rendered.index("livecheck do"), :<, rendered.index("on_macos do")
     assert_operator rendered.index('uses_from_macos "git"'), :<, rendered.index("on_macos do")
 

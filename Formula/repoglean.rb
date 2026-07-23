@@ -32,12 +32,7 @@ class Repoglean < Formula
   end
 
   def install
-    rid = if OS.mac?
-      Hardware::CPU.arm? ? "osx-arm64" : "osx-x64"
-    else
-      Hardware::CPU.arm? ? "linux-arm64" : "linux-x64"
-    end
-    bin.install "repoglean-#{rid}/repoglean"
+    bin.install "repoglean"
   end
 
   test do
