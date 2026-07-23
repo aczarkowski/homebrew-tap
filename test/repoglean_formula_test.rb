@@ -5,6 +5,7 @@ require "minitest/autorun"
 require "open3"
 require "tmpdir"
 require "webrick"
+require "yaml"
 require "repoglean_formula"
 
 class RepoGleanFormulaTest < Minitest::Test
@@ -193,5 +194,36 @@ class RepoGleanFormulaTest < Minitest::Test
   ensure
     server&.shutdown
     thread&.join
+  end
+
+  def test_update_workflow_is_scheduled_scoped_and_reviewed
+    workflow_path = File.expand_path(
+      "../.github/workflows/update-repoglean.yml",
+      __dir__,
+    )
+    source = File.read(workflow_path)
+    workflow = YAML.safe_load(source)
+    triggers = workflow["on"] || workflow.fetch(true)
+
+    assert_equal(
+      "17 6 * * *",
+      triggers.fetch("schedule").fetch(0).fetch("cron"),
+    )
+    assert triggers.key?("workflow_dispatch")
+    assert_equal "write", workflow.fetch("permissions").fetch("contents")
+    assert_equal(
+      "write",
+      workflow.fetch("permissions").fetch("pull-requests"),
+    )
+    refute_includes source, "secrets."
+    refute_includes source, "push origin master"
+    [
+      "test/repoglean_formula_test.rb",
+      "script/update-repoglean",
+      "brew style",
+      "brew audit --strict --online",
+      "brew livecheck",
+      "gh pr create",
+    ].each { |command| assert_includes source, command }
   end
 end

@@ -1,0 +1,75 @@
+name: Update RepoGlean
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-repoglean
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Test updater
+        run: ruby -Ilib test/repoglean_formula_test.rb
+
+      - name: Update formula
+        id: update
+        run: |
+          script/update-repoglean
+          if git diff --quiet -- Formula/repoglean.rb; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate formula
+        if: steps.update.outputs.changed == 'true'
+        run: |
+          brew style Formula/repoglean.rb
+          brew audit --strict --online Formula/repoglean.rb
+          brew livecheck Formula/repoglean.rb
+
+      - name: Open update pull request
+        if: steps.update.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(ruby -Ilib -rrepoglean_formula \
+            -e 'puts RepoGleanFormula.current_version("Formula/repoglean.rb")')
+          branch="automation/repoglean-${version}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add Formula/repoglean.rb
+          git commit -m "repoglean ${version}"
+
+          remote_sha=$(git ls-remote --heads origin "refs/heads/${branch}" | awk '{print $1}')
+          if [ -n "$remote_sha" ]; then
+            git push \
+              --force-with-lease="refs/heads/${branch}:${remote_sha}" \
+              origin "HEAD:refs/heads/${branch}"
+          else
+            git push origin "HEAD:refs/heads/${branch}"
+          fi
+
+          pr_number=$(gh pr list --head "$branch" --state all \
+            --json number --jq '.[0].number // empty')
+          if [ -z "$pr_number" ]; then
+            gh pr create \
+              --base master \
+              --head "$branch" \
+              --title "repoglean ${version}" \
+              --body "Automated update to RepoGlean ${version}."
+          else
+            gh pr reopen "$pr_number" 2>/dev/null || true
+          fi
