@@ -1,18 +1,31 @@
-# Aczarkowski Tap
+# RepoGlean Homebrew Tap
 
-## How do I install these formulae?
+Homebrew distribution for [RepoGlean](https://github.com/aczarkowski/RepoGlean),
+a CLI that safely reclaims space from regenerable Git artifacts.
 
-`brew install aczarkowski/tap/<formula>`
+## Install
 
-Or `brew tap aczarkowski/tap` and then `brew install <formula>`.
-
-Or, in a `brew bundle` `Brewfile`:
-
-```ruby
-tap "aczarkowski/tap"
-brew "<formula>"
+```bash
+brew install aczarkowski/tap/repoglean
 ```
 
-## Documentation
+Or tap first:
 
-`brew help`, `man brew` or check [Homebrew's documentation](https://docs.brew.sh).
+```bash
+brew tap aczarkowski/tap
+brew install repoglean
+```
+
+## Updates
+
+```bash
+brew update
+brew outdated repoglean
+brew upgrade repoglean
+```
+
+Maintainers can compare the formula with the latest stable GitHub release:
+
+```bash
+brew livecheck aczarkowski/tap/repoglean
+```
