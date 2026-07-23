@@ -53,11 +53,18 @@ module RepoGleanFormula
 
   def render(release)
     <<~RUBY
-      class RepoGlean < Formula
+      class Repoglean < Formula
         desc "Safely reclaim space from regenerable Git artifacts"
         homepage "https://github.com/aczarkowski/RepoGlean"
         version "#{release.version}"
         license "MIT"
+
+        livecheck do
+          url :stable
+          strategy :github_latest
+        end
+
+        depends_on "git"
 
         on_macos do
           if Hardware::CPU.arm?
@@ -78,13 +85,6 @@ module RepoGleanFormula
             sha256 "#{release.checksums.fetch("linux-x64")}"
           end
         end
-
-        livecheck do
-          url :stable
-          strategy :github_latest
-        end
-
-        depends_on "git"
 
         def install
           rid = if OS.mac?

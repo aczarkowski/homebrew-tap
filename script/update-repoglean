@@ -1,0 +1,79 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "json"
+require "net/http"
+require "pathname"
+require "tempfile"
+require "uri"
+require_relative "../lib/repoglean_formula"
+
+RELEASE_URL = "https://api.github.com/repos/aczarkowski/RepoGlean/releases/latest"
+
+def get(url, redirects_remaining = 5)
+  uri = URI(url)
+  request = Net::HTTP::Get.new(uri)
+  request["Accept"] = "application/vnd.github+json"
+  request["X-GitHub-Api-Version"] = "2022-11-28"
+  request["User-Agent"] = "aczarkowski-homebrew-tap"
+  response = Net::HTTP.start(
+    uri.hostname,
+    uri.port,
+    use_ssl: uri.scheme == "https",
+  ) do |http|
+    http.request(request)
+  end
+  if response.is_a?(Net::HTTPRedirection)
+    raise "GET #{url} exceeded redirect limit" if redirects_remaining.zero?
+
+    location = response["location"]
+    raise "GET #{url} redirected without Location" unless location
+
+    return get(URI.join(url, location).to_s, redirects_remaining - 1)
+  end
+  unless response.is_a?(Net::HTTPSuccess)
+    raise "GET #{url} returned #{response.code}"
+  end
+
+  response.body
+end
+
+release_json = if ENV["REPOGLEAN_RELEASE_JSON"]
+  File.read(ENV.fetch("REPOGLEAN_RELEASE_JSON"))
+else
+  get(RELEASE_URL)
+end
+
+checksum_loader = lambda do |url|
+  if ENV["REPOGLEAN_CHECKSUM_DIRECTORY"]
+    filename = File.basename(URI(url).path)
+    File.read(File.join(ENV.fetch("REPOGLEAN_CHECKSUM_DIRECTORY"), filename))
+  else
+    get(url)
+  end
+end
+
+release = RepoGleanFormula.parse_release(
+  JSON.parse(release_json),
+  checksum_loader: checksum_loader,
+)
+rendered = RepoGleanFormula.render(release)
+root = Pathname(__dir__).parent
+target = Pathname(
+  ENV.fetch("REPOGLEAN_FORMULA_PATH", root/"Formula/repoglean.rb"),
+)
+
+if target.exist? && target.binread == rendered
+  puts "repoglean #{release.version} is current"
+  exit 0
+end
+
+target.dirname.mkpath
+Tempfile.create([target.basename.to_s, ".tmp"], target.dirname) do |temporary|
+  temporary.binmode
+  temporary.write(rendered)
+  temporary.flush
+  File.rename(temporary.path, target)
+  File.chmod(0o644, target)
+end
+puts "updated repoglean to #{release.version}"

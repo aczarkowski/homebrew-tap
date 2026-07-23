@@ -2,7 +2,9 @@
 
 require "json"
 require "minitest/autorun"
+require "open3"
 require "tmpdir"
+require "webrick"
 require "repoglean_formula"
 
 class RepoGleanFormulaTest < Minitest::Test
@@ -51,6 +53,7 @@ class RepoGleanFormulaTest < Minitest::Test
     rendered = RepoGleanFormula.render(release)
 
     assert_equal "2.0.0", release.version
+    assert_includes rendered, "class Repoglean < Formula"
     RepoGleanFormula::RIDS.each do |rid|
       assert_includes rendered, "https://example.test/repoglean-#{rid}.tar.gz"
       assert_includes rendered, SHA256.fetch(rid)
@@ -58,6 +61,8 @@ class RepoGleanFormulaTest < Minitest::Test
     assert_includes rendered, 'depends_on "git"'
     assert_includes rendered, "strategy :github_latest"
     assert_includes rendered, 'assert_equal "repoglean #{version}\\n"'
+    assert_operator rendered.index("livecheck do"), :<, rendered.index("on_macos do")
+    assert_operator rendered.index('depends_on "git"'), :<, rendered.index("on_macos do")
 
     Dir.mktmpdir do |directory|
       path = File.join(directory, "repoglean.rb")
@@ -104,5 +109,89 @@ class RepoGleanFormulaTest < Minitest::Test
       "invalid checksum: #{name}",
       loader: checksum_loader(name => "not-a-checksum\n"),
     )
+  end
+
+  def test_cli_updates_then_reports_current
+    Dir.mktmpdir do |directory|
+      release_path = File.join(directory, "release.json")
+      formula_path = File.join(directory, "repoglean.rb")
+      File.write(release_path, JSON.generate(release_payload))
+      RepoGleanFormula::RIDS.each do |rid|
+        name = "repoglean-#{rid}.tar.gz.sha256"
+        File.write(
+          File.join(directory, name),
+          "#{SHA256.fetch(rid)}  #{name.delete_suffix(".sha256")}\n",
+        )
+      end
+
+      environment = {
+        "REPOGLEAN_RELEASE_JSON" => release_path,
+        "REPOGLEAN_CHECKSUM_DIRECTORY" => directory,
+        "REPOGLEAN_FORMULA_PATH" => formula_path,
+      }
+      command = [File.expand_path("../script/update-repoglean", __dir__)]
+
+    stdout, stderr, status = Open3.capture3(environment, *command)
+    assert status.success?, stderr
+    assert_equal "updated repoglean to 2.0.0\n", stdout
+    assert_equal 0o644, File.stat(formula_path).mode & 0o777
+
+      first_bytes = File.binread(formula_path)
+      stdout, stderr, status = Open3.capture3(environment, *command)
+      assert status.success?, stderr
+      assert_equal "repoglean 2.0.0 is current\n", stdout
+      assert_equal first_bytes, File.binread(formula_path)
+    end
+  end
+
+  def test_cli_follows_checksum_asset_redirects
+    logger = WEBrick::Log.new(File::NULL, WEBrick::Log::FATAL)
+    server = WEBrick::HTTPServer.new(
+      Port: 0,
+      BindAddress: "127.0.0.1",
+      Logger: logger,
+      AccessLog: [],
+    )
+    port = server.listeners.fetch(0).addr[1]
+    server.mount_proc("/redirect") do |request, response|
+      response.status = 302
+      response["Location"] = "http://127.0.0.1:#{port}/checksum?#{request.query_string}"
+    end
+    server.mount_proc("/checksum") do |request, response|
+      rid = request.query.fetch("rid")
+      name = "repoglean-#{rid}.tar.gz"
+      response.body = "#{SHA256.fetch(rid)}  #{name}\n"
+    end
+    thread = Thread.new { server.start }
+
+    Dir.mktmpdir do |directory|
+      payload = release_payload
+      payload.fetch("assets").each do |asset|
+        next unless asset.fetch("name").end_with?(".sha256")
+
+        rid = asset.fetch("name")
+          .delete_prefix("repoglean-")
+          .delete_suffix(".tar.gz.sha256")
+        asset["browser_download_url"] =
+          "http://127.0.0.1:#{port}/redirect?rid=#{rid}"
+      end
+      release_path = File.join(directory, "release.json")
+      formula_path = File.join(directory, "repoglean.rb")
+      File.write(release_path, JSON.generate(payload))
+
+      stdout, stderr, status = Open3.capture3(
+        {
+          "REPOGLEAN_RELEASE_JSON" => release_path,
+          "REPOGLEAN_FORMULA_PATH" => formula_path,
+        },
+        File.expand_path("../script/update-repoglean", __dir__),
+      )
+
+      assert status.success?, "#{stdout}#{stderr}"
+      assert_equal "updated repoglean to 2.0.0\n", stdout
+    end
+  ensure
+    server&.shutdown
+    thread&.join
   end
 end
