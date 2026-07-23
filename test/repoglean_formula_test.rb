@@ -1,3 +1,4 @@
+# typed: strict
 # frozen_string_literal: true
 
 require "json"
@@ -8,12 +9,13 @@ require "webrick"
 require "yaml"
 require "repoglean_formula"
 
+# Exercises release validation, formula rendering, and update automation.
 class RepoGleanFormulaTest < Minitest::Test
   SHA256 = {
-    "osx-arm64" => "2" * 64,
-    "osx-x64" => "3" * 64,
+    "osx-arm64"   => "2" * 64,
+    "osx-x64"     => "3" * 64,
     "linux-arm64" => "4" * 64,
-    "linux-x64" => "5" * 64,
+    "linux-x64"   => "5" * 64,
   }.freeze
 
   def release_payload(tag: "v2.0.0", draft: false, prerelease: false)
@@ -22,17 +24,17 @@ class RepoGleanFormulaTest < Minitest::Test
       [
         { "name" => archive, "browser_download_url" => "https://example.test/#{archive}" },
         {
-          "name" => "#{archive}.sha256",
+          "name"                 => "#{archive}.sha256",
           "browser_download_url" => "https://example.test/#{archive}.sha256",
         },
       ]
     end
 
     {
-      "tag_name" => tag,
-      "draft" => draft,
+      "tag_name"   => tag,
+      "draft"      => draft,
       "prerelease" => prerelease,
-      "assets" => assets,
+      "assets"     => assets,
     }
   end
 
@@ -62,9 +64,9 @@ class RepoGleanFormulaTest < Minitest::Test
     assert_includes rendered, 'uses_from_macos "git"'
     refute_includes rendered, 'depends_on "git"'
     assert_includes rendered, "strategy :github_latest"
-    assert_includes rendered, 'assert_equal "repoglean #{version}\\n"'
+    assert_includes rendered, "assert_equal \"repoglean \#{version}\\n\""
     assert_includes rendered, 'bin.install "repoglean"'
-    refute_includes rendered, 'bin.install "repoglean-#{rid}/repoglean"'
+    refute_includes rendered, "bin.install \"repoglean-\#{rid}/repoglean\""
     assert_operator rendered.index("livecheck do"), :<, rendered.index("on_macos do")
     assert_operator rendered.index('uses_from_macos "git"'), :<, rendered.index("on_macos do")
 
@@ -129,16 +131,16 @@ class RepoGleanFormulaTest < Minitest::Test
       end
 
       environment = {
-        "REPOGLEAN_RELEASE_JSON" => release_path,
+        "REPOGLEAN_RELEASE_JSON"       => release_path,
         "REPOGLEAN_CHECKSUM_DIRECTORY" => directory,
-        "REPOGLEAN_FORMULA_PATH" => formula_path,
+        "REPOGLEAN_FORMULA_PATH"       => formula_path,
       }
       command = [File.expand_path("../script/update-repoglean", __dir__)]
 
-    stdout, stderr, status = Open3.capture3(environment, *command)
-    assert status.success?, stderr
-    assert_equal "updated repoglean to 2.0.0\n", stdout
-    assert_equal 0o644, File.stat(formula_path).mode & 0o777
+      stdout, stderr, status = Open3.capture3(environment, *command)
+      assert status.success?, stderr
+      assert_equal "updated repoglean to 2.0.0\n", stdout
+      assert_equal 0644, File.stat(formula_path).mode & 0777
 
       first_bytes = File.binread(formula_path)
       stdout, stderr, status = Open3.capture3(environment, *command)
@@ -151,10 +153,10 @@ class RepoGleanFormulaTest < Minitest::Test
   def test_cli_follows_checksum_asset_redirects
     logger = WEBrick::Log.new(File::NULL, WEBrick::Log::FATAL)
     server = WEBrick::HTTPServer.new(
-      Port: 0,
+      Port:        0,
       BindAddress: "127.0.0.1",
-      Logger: logger,
-      AccessLog: [],
+      Logger:      logger,
+      AccessLog:   [],
     )
     port = server.listeners.fetch(0).addr[1]
     server.mount_proc("/redirect") do |request, response|
@@ -162,7 +164,7 @@ class RepoGleanFormulaTest < Minitest::Test
       response["Location"] = "http://127.0.0.1:#{port}/checksum?#{request.query_string}"
     end
     server.mount_proc("/checksum") do |request, response|
-      unless request["authorization"] == "Bearer test-token"
+      if request["authorization"] != "Bearer test-token"
         response.status = 401
         next
       end
@@ -179,8 +181,8 @@ class RepoGleanFormulaTest < Minitest::Test
         next unless asset.fetch("name").end_with?(".sha256")
 
         rid = asset.fetch("name")
-          .delete_prefix("repoglean-")
-          .delete_suffix(".tar.gz.sha256")
+                   .delete_prefix("repoglean-")
+                   .delete_suffix(".tar.gz.sha256")
         asset["browser_download_url"] =
           "http://127.0.0.1:#{port}/redirect?rid=#{rid}"
       end
@@ -192,7 +194,7 @@ class RepoGleanFormulaTest < Minitest::Test
         {
           "REPOGLEAN_RELEASE_JSON" => release_path,
           "REPOGLEAN_FORMULA_PATH" => formula_path,
-          "GITHUB_TOKEN" => "test-token",
+          "GITHUB_TOKEN"           => "test-token",
         },
         File.expand_path("../script/update-repoglean", __dir__),
       )

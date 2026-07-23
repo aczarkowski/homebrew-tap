@@ -1,7 +1,9 @@
+# typed: strict
 # frozen_string_literal: true
 
 require "uri"
 
+# Validates RepoGlean release metadata and renders the Homebrew formula.
 module RepoGleanFormula
   RIDS = %w[osx-arm64 osx-x64 linux-arm64 linux-x64].freeze
   Release = Struct.new(:version, :archives, :checksums, keyword_init: true)
@@ -9,14 +11,10 @@ module RepoGleanFormula
   module_function
 
   def parse_release(payload, checksum_loader:)
-    if payload.fetch("draft") || payload.fetch("prerelease")
-      raise ArgumentError, "release is not stable"
-    end
+    raise ArgumentError, "release is not stable" if payload.fetch("draft") || payload.fetch("prerelease")
 
     match = /\Av(\d+\.\d+\.\d+)\z/.match(payload.fetch("tag_name"))
-    unless match
-      raise ArgumentError, "release tag must be v<major>.<minor>.<patch>"
-    end
+    raise ArgumentError, "release tag must be v<major>.<minor>.<patch>" unless match
 
     assets = payload.fetch("assets").to_h do |asset|
       [asset.fetch("name"), asset.fetch("browser_download_url")]
@@ -34,9 +32,7 @@ module RepoGleanFormula
         raise ArgumentError, "missing asset: #{checksum_name}"
       end
       checksum = checksum_loader.call(checksum_url).split.first
-      unless /\A[0-9a-f]{64}\z/.match?(checksum)
-        raise ArgumentError, "invalid checksum: #{checksum_name}"
-      end
+      raise ArgumentError, "invalid checksum: #{checksum_name}" unless /\A[0-9a-f]{64}\z/.match?(checksum)
 
       checksums[rid] = checksum
     end
