@@ -59,11 +59,12 @@ class RepoGleanFormulaTest < Minitest::Test
       assert_includes rendered, "https://example.test/repoglean-#{rid}.tar.gz"
       assert_includes rendered, SHA256.fetch(rid)
     end
-    assert_includes rendered, 'depends_on "git"'
+    assert_includes rendered, 'uses_from_macos "git"'
+    refute_includes rendered, 'depends_on "git"'
     assert_includes rendered, "strategy :github_latest"
     assert_includes rendered, 'assert_equal "repoglean #{version}\\n"'
     assert_operator rendered.index("livecheck do"), :<, rendered.index("on_macos do")
-    assert_operator rendered.index('depends_on "git"'), :<, rendered.index("on_macos do")
+    assert_operator rendered.index('uses_from_macos "git"'), :<, rendered.index("on_macos do")
 
     Dir.mktmpdir do |directory|
       path = File.join(directory, "repoglean.rb")
@@ -159,6 +160,11 @@ class RepoGleanFormulaTest < Minitest::Test
       response["Location"] = "http://127.0.0.1:#{port}/checksum?#{request.query_string}"
     end
     server.mount_proc("/checksum") do |request, response|
+      unless request["authorization"] == "Bearer test-token"
+        response.status = 401
+        next
+      end
+
       rid = request.query.fetch("rid")
       name = "repoglean-#{rid}.tar.gz"
       response.body = "#{SHA256.fetch(rid)}  #{name}\n"
@@ -184,6 +190,7 @@ class RepoGleanFormulaTest < Minitest::Test
         {
           "REPOGLEAN_RELEASE_JSON" => release_path,
           "REPOGLEAN_FORMULA_PATH" => formula_path,
+          "GITHUB_TOKEN" => "test-token",
         },
         File.expand_path("../script/update-repoglean", __dir__),
       )
@@ -220,6 +227,7 @@ class RepoGleanFormulaTest < Minitest::Test
     [
       "test/repoglean_formula_test.rb",
       "script/update-repoglean",
+      "GITHUB_TOKEN: ${{ github.token }}",
       "brew style",
       "brew audit --strict --online",
       "brew livecheck",

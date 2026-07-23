@@ -16,6 +16,8 @@ def get(url, redirects_remaining = 5)
   request["Accept"] = "application/vnd.github+json"
   request["X-GitHub-Api-Version"] = "2022-11-28"
   request["User-Agent"] = "aczarkowski-homebrew-tap"
+  token = ENV["GITHUB_TOKEN"]
+  request["Authorization"] = "Bearer #{token}" if token && !token.empty?
   response = Net::HTTP.start(
     uri.hostname,
     uri.port,

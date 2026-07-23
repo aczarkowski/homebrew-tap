@@ -64,7 +64,7 @@ module RepoGleanFormula
           strategy :github_latest
         end
 
-        depends_on "git"
+        uses_from_macos "git"
 
         on_macos do
           if Hardware::CPU.arm?

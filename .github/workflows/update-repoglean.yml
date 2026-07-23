@@ -24,6 +24,8 @@ jobs:
 
       - name: Update formula
         id: update
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           script/update-repoglean
           if git diff --quiet -- Formula/repoglean.rb; then
