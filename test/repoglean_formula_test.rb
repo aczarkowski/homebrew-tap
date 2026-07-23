@@ -229,6 +229,7 @@ class RepoGleanFormulaTest < Minitest::Test
     refute_includes source, "secrets."
     refute_includes source, "push origin master"
     [
+      "gem install webrick --no-document",
       "test/repoglean_formula_test.rb",
       "script/update-repoglean",
       "GITHUB_TOKEN: ${{ github.token }}",
