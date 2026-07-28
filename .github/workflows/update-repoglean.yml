@@ -19,6 +19,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@df4b09108a1de9d6f995fe68f302b3f68bd6d2ef # 2026.07.20.1
+        with:
+          token: ${{ github.token }}
+
       - name: Install updater test dependency
         run: gem install webrick --no-document
 
@@ -41,8 +46,8 @@ jobs:
         if: steps.update.outputs.changed == 'true'
         run: |
           brew style Formula/repoglean.rb
-          brew audit --strict --online Formula/repoglean.rb
-          brew livecheck Formula/repoglean.rb
+          brew audit --strict --online aczarkowski/tap/repoglean
+          brew livecheck aczarkowski/tap/repoglean
 
       - name: Open update pull request
         if: steps.update.outputs.changed == 'true'

@@ -228,14 +228,16 @@ class RepoGleanFormulaTest < Minitest::Test
     )
     refute_includes source, "secrets."
     refute_includes source, "push origin master"
+    refute_includes source, "brew audit --strict --online Formula/repoglean.rb"
     [
+      "Homebrew/actions/setup-homebrew@df4b09108a1de9d6f995fe68f302b3f68bd6d2ef",
       "gem install webrick --no-document",
       "test/repoglean_formula_test.rb",
       "script/update-repoglean",
       "GITHUB_TOKEN: ${{ github.token }}",
       "brew style",
-      "brew audit --strict --online",
-      "brew livecheck",
+      "brew audit --strict --online aczarkowski/tap/repoglean",
+      "brew livecheck aczarkowski/tap/repoglean",
       "gh pr create",
     ].each { |command| assert_includes source, command }
   end
