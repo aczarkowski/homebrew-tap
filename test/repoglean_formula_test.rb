@@ -22,10 +22,15 @@ class RepoGleanFormulaTest < Minitest::Test
     assets = RepoGleanFormula::RIDS.flat_map do |rid|
       archive = "repoglean-#{rid}.tar.gz"
       [
-        { "name" => archive, "browser_download_url" => "https://example.test/#{archive}" },
+        {
+          "name"                 => archive,
+          "browser_download_url" =>
+                                    "https://github.com/aczarkowski/RepoGlean/releases/download/#{tag}/#{archive}",
+        },
         {
           "name"                 => "#{archive}.sha256",
-          "browser_download_url" => "https://example.test/#{archive}.sha256",
+          "browser_download_url" =>
+                                    "https://github.com/aczarkowski/RepoGlean/releases/download/#{tag}/#{archive}.sha256",
         },
       ]
     end
@@ -58,9 +63,10 @@ class RepoGleanFormulaTest < Minitest::Test
     assert_equal "2.0.0", release.version
     assert_includes rendered, "class Repoglean < Formula"
     RepoGleanFormula::RIDS.each do |rid|
-      assert_includes rendered, "https://example.test/repoglean-#{rid}.tar.gz"
+      assert_includes rendered, "/releases/download/v2.0.0/repoglean-#{rid}.tar.gz"
       assert_includes rendered, SHA256.fetch(rid)
     end
+    refute_includes rendered, 'version "2.0.0"'
     assert_includes rendered, 'uses_from_macos "git"'
     refute_includes rendered, 'depends_on "git"'
     assert_includes rendered, "strategy :github_latest"
@@ -74,6 +80,45 @@ class RepoGleanFormulaTest < Minitest::Test
       path = File.join(directory, "repoglean.rb")
       File.write(path, rendered)
       assert_equal "2.0.0", RepoGleanFormula.current_version(path)
+    end
+  end
+
+  def test_current_version_rejects_inconsistent_release_urls
+    release = RepoGleanFormula.parse_release(
+      release_payload,
+      checksum_loader: checksum_loader,
+    )
+    rendered = RepoGleanFormula.render(release).sub(
+      "/releases/download/v2.0.0/repoglean-osx-arm64",
+      "/releases/download/v2.1.0/repoglean-osx-arm64",
+    )
+
+    Dir.mktmpdir do |directory|
+      path = File.join(directory, "repoglean.rb")
+      File.write(path, rendered)
+      error = assert_raises(ArgumentError) do
+        RepoGleanFormula.current_version(path)
+      end
+      assert_equal "formula release URLs disagree", error.message
+    end
+  end
+
+  def test_current_version_requires_every_release_url
+    release = RepoGleanFormula.parse_release(
+      release_payload,
+      checksum_loader: checksum_loader,
+    )
+    rendered = RepoGleanFormula.render(release).lines.reject do |line|
+      line.include?("repoglean-linux-x64.tar.gz")
+    end.join
+
+    Dir.mktmpdir do |directory|
+      path = File.join(directory, "repoglean.rb")
+      File.write(path, rendered)
+      error = assert_raises(ArgumentError) do
+        RepoGleanFormula.current_version(path)
+      end
+      assert_equal "formula release URLs are incomplete", error.message
     end
   end
 

@@ -6,6 +6,10 @@ require "uri"
 # Validates RepoGlean release metadata and renders the Homebrew formula.
 module RepoGleanFormula
   RIDS = %w[osx-arm64 osx-x64 linux-arm64 linux-x64].freeze
+  FORMULA_RELEASE_URL = %r{
+    https://github\.com/aczarkowski/RepoGlean/releases/download/
+    v(\d+\.\d+\.\d+)/repoglean-(#{RIDS.join("|")})\.tar\.gz
+  }x
   Release = Struct.new(:version, :archives, :checksums, keyword_init: true)
 
   module_function
@@ -41,10 +45,14 @@ module RepoGleanFormula
   end
 
   def current_version(path)
-    match = File.read(path).match(/^  version "([^"]+)"$/)
-    raise ArgumentError, "formula version is missing" unless match
+    matches = File.read(path).scan(FORMULA_RELEASE_URL)
+    rids = matches.map(&:last)
+    raise ArgumentError, "formula release URLs are incomplete" if rids.sort != RIDS.sort
 
-    match[1]
+    versions = matches.map(&:first).uniq
+    raise ArgumentError, "formula release URLs disagree" unless versions.one?
+
+    versions.fetch(0)
   end
 
   def render(release)
@@ -52,7 +60,6 @@ module RepoGleanFormula
       class Repoglean < Formula
         desc "Safely reclaim space from regenerable Git artifacts"
         homepage "https://github.com/aczarkowski/RepoGlean"
-        version "#{release.version}"
         license "MIT"
 
         livecheck do
