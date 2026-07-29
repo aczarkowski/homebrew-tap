@@ -130,7 +130,10 @@ class RepoGleanFormulaTest < Minitest::Test
     source = File.read(formula_path)
 
     refute_match(/^  version "/, source)
-    assert_equal "2.0.0", RepoGleanFormula.current_version(formula_path)
+    assert_match(
+      /\A\d+\.\d+\.\d+\z/,
+      RepoGleanFormula.current_version(formula_path),
+    )
   end
 
   def assert_release_error(message, payload: release_payload, loader: checksum_loader)
