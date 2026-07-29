@@ -1,7 +1,6 @@
 class Repoglean < Formula
   desc "Safely reclaim space from regenerable Git artifacts"
   homepage "https://github.com/aczarkowski/RepoGlean"
-  version "2.0.0"
   license "MIT"
 
   livecheck do

@@ -122,6 +122,17 @@ class RepoGleanFormulaTest < Minitest::Test
     end
   end
 
+  def test_checked_in_formula_lets_homebrew_infer_version
+    formula_path = File.expand_path(
+      "../Formula/repoglean.rb",
+      __dir__,
+    )
+    source = File.read(formula_path)
+
+    refute_match(/^  version "/, source)
+    assert_equal "2.0.0", RepoGleanFormula.current_version(formula_path)
+  end
+
   def assert_release_error(message, payload: release_payload, loader: checksum_loader)
     error = assert_raises(ArgumentError) do
       RepoGleanFormula.parse_release(payload, checksum_loader: loader)
