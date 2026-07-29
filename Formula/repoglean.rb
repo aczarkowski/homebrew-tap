@@ -12,21 +12,21 @@ class Repoglean < Formula
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/aczarkowski/RepoGlean/releases/download/v2.0.0/repoglean-osx-arm64.tar.gz"
-      sha256 "2c5d0ef69bad09bc1283b2867f2bd22d955f8970990ee71e92f0a72464733603"
+      url "https://github.com/aczarkowski/RepoGlean/releases/download/v2.1.0/repoglean-osx-arm64.tar.gz"
+      sha256 "1fab993bf4d16b9b3883496fadd280b3028a7d0f30747979f2a69e441d5d2a8e"
     else
-      url "https://github.com/aczarkowski/RepoGlean/releases/download/v2.0.0/repoglean-osx-x64.tar.gz"
-      sha256 "d58f08fb7b00f2acf0dcbdca6af8334f8ea6d9d6a44a6876dd4243df497bf900"
+      url "https://github.com/aczarkowski/RepoGlean/releases/download/v2.1.0/repoglean-osx-x64.tar.gz"
+      sha256 "566dba96081e2f507035021016046363319cd2afa1a33f6c84548eeac6b1bd32"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
-      url "https://github.com/aczarkowski/RepoGlean/releases/download/v2.0.0/repoglean-linux-arm64.tar.gz"
-      sha256 "b52b95dcb2b24d99862fd82deb132144a18b51b9fe2e2344aa9b7b9d7695cc20"
+      url "https://github.com/aczarkowski/RepoGlean/releases/download/v2.1.0/repoglean-linux-arm64.tar.gz"
+      sha256 "e3ec6c049d6aa0b02755b899eee3226341891f2e2bcf234a36ed4c6d99c878b6"
     else
-      url "https://github.com/aczarkowski/RepoGlean/releases/download/v2.0.0/repoglean-linux-x64.tar.gz"
-      sha256 "3731f411e7227b092d0098e1cb89de08208096bd3b95b774a389e2a2fd9aba96"
+      url "https://github.com/aczarkowski/RepoGlean/releases/download/v2.1.0/repoglean-linux-x64.tar.gz"
+      sha256 "4d3d34ac5f31722bc521ac3c4b1fc019f892406d512ff469d2830a94d5ad3acb"
     end
   end
 
