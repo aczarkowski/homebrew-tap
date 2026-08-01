@@ -288,8 +288,11 @@ class RepoGleanFormulaTest < Minitest::Test
     refute_includes source, "secrets."
     refute_includes source, "push origin master"
     refute_includes source, "brew audit --strict --online Formula/repoglean.rb"
+    assert_match(
+      /^\s+uses: Homebrew\/actions\/setup-homebrew@[0-9a-f]{40}\b/,
+      source,
+    )
     [
-      "Homebrew/actions/setup-homebrew@df4b09108a1de9d6f995fe68f302b3f68bd6d2ef",
       "gem install webrick --no-document",
       "test/repoglean_formula_test.rb",
       "script/update-repoglean",
