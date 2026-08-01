@@ -289,7 +289,7 @@ class RepoGleanFormulaTest < Minitest::Test
     refute_includes source, "push origin master"
     refute_includes source, "brew audit --strict --online Formula/repoglean.rb"
     assert_match(
-      /^\s+uses: Homebrew\/actions\/setup-homebrew@[0-9a-f]{40}\b/,
+      %r{^\s+uses: Homebrew/actions/setup-homebrew@[0-9a-f]{40}\b},
       source,
     )
     [
